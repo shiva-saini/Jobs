@@ -1,33 +1,45 @@
-using Jobs.Data;
+﻿using Jobs.Data;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
+// Add services to the container
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Configure SQL Server connection
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Bind to Render's dynamic PORT
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+app.Urls.Add($"http://*:{port}");
+
+// Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+else
+{
+    // Render handles HTTPS externally — skip redirect inside container
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
-app.UseHttpsRedirection();
+// Optional: disable HTTPS redirection to prevent 308 redirect loops on Render
+// Comment out if you face issues reaching the API
+// app.UseHttpsRedirection();
 
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Simple health-check endpoint for Render
+app.MapGet("/", () => "✅ Jobs API is running successfully on Render!");
 
 app.Run();
